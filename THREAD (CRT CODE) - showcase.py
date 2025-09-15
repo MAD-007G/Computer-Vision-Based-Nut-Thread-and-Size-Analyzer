@@ -144,86 +144,9 @@ def process_frame_with_rgb_contours(frame):
             if is_threaded:
                 break
 
-    # Draw inner contours if they exist
-    if hierarchy is not None:
-        for i, cnt in enumerate(contours):
-            # Check if contour has a parent (i.e., is an inner contour) and meets area threshold
-            if hierarchy[0][i][3] != -1 and cv2.contourArea(cnt) > min_inner_contour_area:
-                cv2.drawContours(contour_img, [cnt], -1, (255, 0, 0), 1)  # Blue for inner thread contours
-
-    # Add threaded/nonthreaded label to the contour image
-    label = "Threaded" if is_threaded else "Nonthreaded"
-    cv2.putText(contour_img, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-    # Region of Interest (ROI) for outer contours
-    if len(filtered_contours) > 0:
-        for cnt in filtered_contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            roi = frame[y:y + h, x:x + w]  # Crop the ROI from the frame
-            cv2.imshow("ROI", roi)  # Display the ROI
-
-    return contour_img
-
-# =======================
-# Run Camera Loop with Contour Detection
-# =======================
-def run_camera(datastream, device, buffers, image_converter, width, height):
-    try:
-        while True:
-            try:
-                # Wait for a buffer to finish (1 second timeout)
-                buffer = datastream.WaitForFinishedBuffer(1000)
-                if buffer is None:
-                    continue
-            except ids_peak.Exception as e:
-                print(f"Buffer error: {e}")
-                continue
-
-            try:
-                # Convert the buffer to an image using IDS Peak IPL
-                ipl_image = ids_peak_ipl_extension.BufferToImage(buffer)
-                image_converted = image_converter.Convert(ipl_image, ids_peak_ipl.PixelFormatName_BGRa8)
-
-                # Convert to numpy array for OpenCV processing
-                img_array = image_converted.get_numpy_1D()
-                frame = np.reshape(img_array, (height, width, 4))  # Ensure the frame is reshaped properly
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-
-                # Process frame for contours and RGB inside the contours
-                contour_frame = process_frame_with_rgb_contours(frame)
-
-                # Display the camera feed with contours
-                cv2.imshow("Contours - IDS Camera Feed", contour_frame)
-
-                # Wait for user input ('q' to quit)
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    print("[INFO] User requested exit.")
-                    break
-
-            except Exception as e:
-                print(f"Frame processing error: {e}")
-            finally:
-                # Queue the buffer again for reuse
-                datastream.QueueBuffer(buffer)
-
-    except KeyboardInterrupt:
-        print("Interrupted by user.")
-    finally:
-        # Cleanup resources on exit
-        cv2.destroyAllWindows()
-        cleanup(datastream, device)
-
-# =======================
-# Main Entry Point
-# =======================
-def main():
-    datastream, device, buffers, image_converter, width, height = initialize_ids_camera()
-    if not device:
-        print("Failed to initialize camera.")
-        return
 
     run_camera(datastream, device, buffers, image_converter, width, height)
 
 if __name__ == "__main__":
+
     main()
